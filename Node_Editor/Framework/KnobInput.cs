@@ -1,18 +1,18 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
 
-namespace NodeEditorFramework
+namespace NodeEditorFramework.core
 {
 	/// <summary>
 	/// NodeInput accepts one connection to a NodeOutput by default
 	/// </summary>
-	public class NodeInput : NodeKnob
+	public class KnobInput : Knob
 	{
 		// NodeKnob Members
-		protected override NodeSide defaultSide { get { return NodeSide.Left; } }
+		protected override Side defaultSide { get { return Side.Left; } }
 
 		// NodeInput Members
-		public NodeOutput connection;
+		public KnobOutput connection;
 		public string type;
 		[System.NonSerialized]
 		internal TypeData typeData;
@@ -24,28 +24,28 @@ namespace NodeEditorFramework
 		/// <summary>
 		/// Creates a new NodeInput in NodeBody of specified type
 		/// </summary>
-		public static NodeInput Create (Node nodeBody, string inputName, string inputType)
+		public static KnobInput Create (Node parentNode, string inputName, string inputType)
 		{
-			return Create (nodeBody, inputName, inputType, NodeSide.Left, 20);
+			return Create (parentNode, inputName, inputType, Side.Left, 20);
 		}
 
 		/// <summary>
 		/// Creates a new NodeInput in NodeBody of specified type at the specified NodeSide
 		/// </summary>
-		public static NodeInput Create (Node nodeBody, string inputName, string inputType, NodeSide nodeSide)
+		public static KnobInput Create (Node parentNode, string inputName, string inputType, Side side)
 		{
-			return Create (nodeBody, inputName, inputType, nodeSide, 20);
+			return Create (parentNode, inputName, inputType, side, 20);
 		}
 
 		/// <summary>
 		/// Creates a new NodeInput in NodeBody of specified type at the specified NodeSide and position
 		/// </summary>
-		public static NodeInput Create (Node nodeBody, string inputName, string inputType, NodeSide nodeSide, float sidePosition)
+		public static KnobInput Create (Node parentNode, string inputName, string inputType, Side side, float sidePosition)
 		{
-			NodeInput input = CreateInstance <NodeInput> ();
+			KnobInput input = CreateInstance <KnobInput> ();
 			input.type = inputType;
-			input.InitBase (nodeBody, nodeSide, sidePosition, inputName);
-			nodeBody.Inputs.Add (input);
+			input.InitBase (parentNode, side, sidePosition, inputName);
+			parentNode.Inputs.Add (input);
 			return input;
 		}
 
@@ -55,7 +55,7 @@ namespace NodeEditorFramework
 
 		protected internal override void CopyScriptableObjects (System.Func<ScriptableObject, ScriptableObject> replaceSerializableObject) 
 		{
-			connection = replaceSerializableObject.Invoke (connection) as NodeOutput;
+			connection = replaceSerializableObject.Invoke (connection) as KnobOutput;
 			// Multiple connections
 //			for (int conCnt = 0; conCnt < connections.Count; conCnt++) 
 //				connections[conCnt] = replaceSerializableObject.Invoke (connections[conCnt]) as NodeOutput;
@@ -86,7 +86,7 @@ namespace NodeEditorFramework
 		/// </summary>
 		public T GetValue<T> ()
 		{
-			return connection != null? connection.GetValue<T> () : NodeOutput.GetDefault<T> ();
+			return connection != null? connection.GetValue<T> () : KnobOutput.GetDefault<T> ();
 		}
 
 		/// <summary>
@@ -105,14 +105,14 @@ namespace NodeEditorFramework
 		/// <summary>
 		/// Check if the passed NodeOutput can be connected to this NodeInput
 		/// </summary>
-		public bool CanApplyConnection (NodeOutput output)
+		public bool CanApplyConnection (KnobOutput output)
 		{
-			if (output == null || body == output.body || connection == output || typeData.Type != output.typeData.Type)
+			if (output == null || parentNode == output.parentNode || connection == output || typeData.Type != output.typeData.Type)
 				return false;
 
-			if (output.body.isChildOf (body)) 
+			if (output.parentNode.isChildOf (parentNode)) 
 			{ // Recursive
-				if (!output.body.allowsLoopRecursion (body))
+				if (!output.parentNode.allowsLoopRecursion (parentNode))
 				{
 					// TODO: Generic Notification
 					Debug.LogWarning ("Cannot apply connection: Recursion detected!");
@@ -125,7 +125,7 @@ namespace NodeEditorFramework
 		/// <summary>
 		/// Applies a connection between the passed NodeOutput and this NodeInput. 'CanApplyConnection' has to be checked before to avoid interferences!
 		/// </summary>
-		public void ApplyConnection (NodeOutput output)
+		public void ApplyConnection (KnobOutput output)
 		{
 			if (output == null) 
 				return;
@@ -138,9 +138,9 @@ namespace NodeEditorFramework
 			connection = output;
 			output.connections.Add (this);
 
-			NodeEditor.RecalculateFrom (body);
-			output.body.OnAddOutputConnection (output);
-			body.OnAddInputConnection (this);
+			NodeEditor.RecalculateFrom (parentNode);
+			output.parentNode.OnAddOutputConnection (output);
+			parentNode.OnAddInputConnection (this);
 			NodeEditorCallbacks.IssueOnAddConnection (this);
 		}
 
@@ -156,7 +156,7 @@ namespace NodeEditorFramework
 			connection.connections.Remove (this);
 			connection = null;
 
-			NodeEditor.RecalculateFrom (body);
+			NodeEditor.RecalculateFrom (parentNode);
 		}
 
 

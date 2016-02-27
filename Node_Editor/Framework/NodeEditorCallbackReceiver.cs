@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 
-using NodeEditorFramework;
+using NodeEditorFramework.core;
 
 namespace NodeEditorFramework 
 {
@@ -20,11 +20,11 @@ namespace NodeEditorFramework
 		public virtual void OnDeleteNode (Node node) {}
 		public virtual void OnMoveNode (Node node) {}
 		// Connection
-		public virtual void OnAddConnection (NodeInput input) {}
-		public virtual void OnRemoveConnection (NodeInput input) {}
+		public virtual void OnAddConnection (KnobInput input) {}
+		public virtual void OnRemoveConnection (KnobInput input) {}
 		// Transition
-		public virtual void OnAddTransition (Transition transition) {}
-		public virtual void OnRemoveTransition (Transition transition) {}
+		//public virtual void OnAddTransition (Transition transition) {}
+		//public virtual void OnRemoveTransition (Transition transition) {}
 	}
 
 	public static class NodeEditorCallbacks
@@ -167,8 +167,8 @@ namespace NodeEditorFramework
 
 		#region Connection (2)
 
-		public static Action<NodeInput> OnAddConnection;
-		public static void IssueOnAddConnection (NodeInput input) 
+		public static Action<KnobInput> OnAddConnection;
+		public static void IssueOnAddConnection (KnobInput input) 
 		{
 			if (OnAddConnection != null)
 				OnAddConnection.Invoke (input);
@@ -181,8 +181,8 @@ namespace NodeEditorFramework
 			}
 		}
 
-		public static Action<NodeInput> OnRemoveConnection;
-		public static void IssueOnRemoveConnection (NodeInput input) 
+		public static Action<KnobInput> OnRemoveConnection;
+		public static void IssueOnRemoveConnection (KnobInput input) 
 		{
 			if (OnRemoveConnection != null)
 				OnRemoveConnection.Invoke (input);
@@ -199,7 +199,7 @@ namespace NodeEditorFramework
 
 		#region Transition (2)
 
-		public static Action<Transition> OnAddTransition;
+		/*public static Action<Transition> OnAddTransition;
 		public static void IssueOnAddTransition (Transition transition) 
 		{
 			if (OnAddTransition != null)
@@ -225,7 +225,7 @@ namespace NodeEditorFramework
 				else
 					callbackReceiver [cnt].OnRemoveTransition ( transition);
 			}
-		}
+		}*/
 
 		#endregion
 	}

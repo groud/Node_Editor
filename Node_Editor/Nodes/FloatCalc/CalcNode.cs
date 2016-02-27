@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 using NodeEditorFramework;
+using NodeEditorFramework.core;
 using NodeEditorFramework.Utilities;
 
 [System.Serializable]
@@ -10,8 +11,8 @@ public class CalcNode : Node
 	public enum CalcType { Add, Substract, Multiply, Divide }
 	public CalcType type = CalcType.Add;
 
-	public const string ID = "calcNode";
-	public override string GetID { get { return ID; } }
+	//public const string ID = "calcNode";
+	//public override string GetID { get { return ID; } }
 
 	public float Input1Val = 1f;
 	public float Input2Val = 1f;

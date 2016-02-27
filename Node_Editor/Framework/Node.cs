@@ -6,28 +6,23 @@ using System.Collections.Generic;
 using NodeEditorFramework;
 using NodeEditorFramework.Utilities;
 
-namespace NodeEditorFramework
+namespace NodeEditorFramework.core
 {
+
 	public abstract class Node : ScriptableObject
 	{
 		public Rect rect = new Rect ();
-		internal Vector2 contentOffset = Vector2.zero;
+
 		[SerializeField]
-		public List<NodeKnob> nodeKnobs = new List<NodeKnob> ();
+		public List<Knob> knobs = new List<Knob> ();
 
 		// Calculation graph
-//		[NonSerialized]
 		[SerializeField, HideInInspector]
-		public List<NodeInput> Inputs = new List<NodeInput>();
-//		[NonSerialized]
+		public List<KnobInput> Inputs = new List<KnobInput>();
 		[SerializeField, HideInInspector]
-		public List<NodeOutput> Outputs = new List<NodeOutput>();
-		[HideInInspector]
-		[NonSerialized]
+		public List<KnobOutput> Outputs = new List<KnobOutput>();
+		[NonSerialized, HideInInspector]
 		internal bool calculated = true;
-		
-		// State graph
-		public List<Transition> transitions = new List<Transition> ();
 
 		#region General
 
@@ -37,11 +32,11 @@ namespace NodeEditorFramework
 		protected internal void InitBase () 
 		{
 			Calculate ();
-			if (!NodeEditor.curNodeCanvas.nodes.Contains (this))
-				NodeEditor.curNodeCanvas.nodes.Add (this);
+			if (!NodeEditor.canvas.nodes.Contains (this))
+				NodeEditor.canvas.nodes.Add (this);
 			#if UNITY_EDITOR
 			if (name == "")
-				name = UnityEditor.ObjectNames.NicifyVariableName (GetID);
+				name = UnityEditor.ObjectNames.NicifyVariableName ("YOLO");
 			#endif
 		}
 
@@ -50,40 +45,33 @@ namespace NodeEditorFramework
 		/// </summary>
 		public void Delete () 
 		{
-			if (!NodeEditor.curNodeCanvas.nodes.Contains (this))
-				throw new UnityException ("The Node " + name + " does not exist on the Canvas " + NodeEditor.curNodeCanvas.name + "!");
+			if (!NodeEditor.canvas.nodes.Contains (this))
+				throw new UnityException ("The Node " + name + " does not exist on the Canvas " + NodeEditor.canvas.name + "!");
 			NodeEditorCallbacks.IssueOnDeleteNode (this);
-			NodeEditor.curNodeCanvas.nodes.Remove (this);
-			foreach (NodeOutput output in Outputs) 
+			NodeEditor.canvas.nodes.Remove (this);
+			foreach (KnobOutput output in Outputs) 
 			{
 				while (output.connections.Count != 0)
 					output.connections[0].RemoveConnection ();
 				DestroyImmediate (output, true);
 			}
-			foreach (NodeInput input in Inputs) 
+			foreach (KnobInput input in Inputs) 
 			{
 				if (input.connection != null)
 					input.connection.connections.Remove (input);
 				DestroyImmediate (input, true);
 			}
-			foreach  (NodeKnob knob in nodeKnobs) 
+			foreach  (Knob knob in knobs) 
 			{ // Inputs/Outputs need specific treatment, unfortunately
 				if (knob != null)
 					DestroyImmediate (knob, true);
 			}
-			foreach  (Transition transition in transitions) 
-			{
-				transition.Delete ();
-			}
 			DestroyImmediate (this, true);
 		}
 
-		public static Node Create (string nodeID, Vector2 position) 
+		public static Node Create (System.Type type, Vector2 position) 
 		{
-			Node node = NodeTypes.getDefaultNode (nodeID);
-			if (node == null)
-				throw new UnityException ("Cannot create Node with id " + nodeID + " as no such Node type is registered!");
-
+			Node node = (Node) ScriptableObject.CreateInstance (type);
 			node = node.Create (position);
 			node.InitBase ();
 
@@ -92,16 +80,17 @@ namespace NodeEditorFramework
 		}
 
 		/// <summary>
-		/// Makes sure this Node has migrated from the previous save version of NodeKnobs to the current mixed and generic one
+		/// Makes sure this Node has migrated from the previous save version of Knobs to the current mixed and generic one
 		/// </summary>
-		internal void CheckNodeKnobMigration () 
-		{ // TODO: Migration from previous NodeKnob system; Remove later on
+		/*internal void CheckKnobMigration () 
+		{ // TODO: Migration from previous Knob system; Remove later on
 			if (nodeKnobs.Count == 0 && (Inputs.Count != 0 || Outputs.Count != 0)) 
 			{
-				nodeKnobs.AddRange (Inputs.Cast<NodeKnob> ());
-				nodeKnobs.AddRange (Outputs.Cast<NodeKnob> ());
+				nodeKnobs.AddRange (Inputs.Cast<Knob> ());
+				nodeKnobs.AddRange (Outputs.Cast<Knob> ());
 			}
 		}
+		*/
 
 		#endregion
 
@@ -110,13 +99,13 @@ namespace NodeEditorFramework
 		/// <summary>
 		/// Get the ID of the Node
 		/// </summary>
-		public abstract string GetID { get; }
+		//public abstract string GetID { get; }
 
 		/// <summary>
 		/// Create an instance of this Node at the given position
 		/// </summary>
 		public abstract Node Create (Vector2 pos);
-		
+
 		/// <summary>
 		/// Draw the Node immediately
 		/// </summary>
@@ -143,11 +132,6 @@ namespace NodeEditorFramework
 		/// </summary>
 		public virtual bool ContinueCalculation { get { return true; } }
 
-		/// <summary>
-		/// Does this Node accepts Transitions?
-		/// </summary>
-		public virtual bool AcceptsTranstitions { get { return false; } }
-
         #endregion
 
 		#region Protected Callbacks
@@ -158,31 +142,25 @@ namespace NodeEditorFramework
 		protected internal virtual void OnDelete () {}
 
 		/// <summary>
-		/// Callback when the NodeInput was assigned a new connection
+		/// Callback when the KnobInput was assigned a new connection
 		/// </summary>
-		protected internal virtual void OnAddInputConnection (NodeInput input) {}
+		protected internal virtual void OnAddInputConnection (KnobInput input) {}
 
 		/// <summary>
-		/// Callback when the NodeOutput was assigned a new connection (the last in the list)
+		/// Callback when the KnobOutput was assigned a new connection (the last in the list)
 		/// </summary>
-		protected internal virtual void OnAddOutputConnection (NodeOutput output) {}
-
-		/// <summary>
-		/// Callback when the Transition was created
-		/// </summary>
-		protected internal virtual void OnAddTransition (Transition transition) {}
-
+		protected internal virtual void OnAddOutputConnection (KnobOutput output) {}
 
 		/// <summary>
 		/// Callback when the this Node is being transitioned to. 
 		/// OriginTransition is the transition from which was transitioned to this node OR null if the transitioning process was started on this Node
 		/// </summary>
-		protected internal virtual void OnEnter (Transition originTransition) {}
+		//protected internal virtual void OnEnter (Transition originTransition) {}
 
 		/// <summary>
 		/// Callback when the this Node is transitioning to another Node through the passed Transition
 		/// </summary>
-		protected internal virtual void OnLeave (Transition transition) {}
+		// protected internal virtual void OnLeave (Transition transition) {}
 
 		#endregion
 
@@ -202,18 +180,24 @@ namespace NodeEditorFramework
 
 		#endregion
 
+
 		#region Node and Knob Drawing
 
 		/// <summary>
 		/// Draws the node frame and calls NodeGUI. Can be overridden to customize drawing.
 		/// </summary>
-		protected internal virtual void DrawNode () 
+		protected internal virtual void Draw() 
 		{
 			// TODO: Node Editor Feature: Custom Windowing System
 			// Create a rect that is adjusted to the editor zoom
 			Rect nodeRect = rect;
 			nodeRect.position += NodeEditor.curEditorState.zoomPanAdjust;
-			contentOffset = new Vector2 (0, 20);
+			GUI.Window (0, rect, DrawInside, name);
+
+			/*
+			Rect nodeRect = rect;
+			nodeRect.position += NodeEditor.curEditorState.zoomPanAdjust;
+			Vector2 contentOffset = new Vector2 (0, 20);
 
 			// Mark the current transitioning node as such by outlining it
 			if (NodeEditor.curNodeCanvas.currentNode == this)
@@ -221,7 +205,7 @@ namespace NodeEditorFramework
 
 			// Create a headerRect out of the previous rect and draw it, marking the selected node as such by making the header bold
 			Rect headerRect = new Rect (nodeRect.x, nodeRect.y, nodeRect.width, contentOffset.y);
-			GUI.Label (headerRect, name, NodeEditor.curEditorState.selectedNode == this? NodeEditorGUI.nodeBoxBold : NodeEditorGUI.nodeBox);
+			GUI.Label (headerRect, name);
 
 			// Begin the body frame around the NodeGUI
 			Rect bodyRect = new Rect (nodeRect.x, nodeRect.y + contentOffset.y, nodeRect.width, nodeRect.height - contentOffset.y);
@@ -233,17 +217,25 @@ namespace NodeEditorFramework
 			NodeGUI ();
 			// End NodeGUI frame
 			GUILayout.EndArea ();
-			GUI.EndGroup ();
+			GUI.EndGroup ();*/
 		}
+
+		/// <summary>
+		/// Draws inside
+		/// </summary>
+		protected internal virtual void DrawInside (int windowId) 
+		{
+			NodeGUI ();
+		}
+
 
 		/// <summary>
 		/// Draws the nodeKnobs
 		/// </summary>
 		protected internal virtual void DrawKnobs () 
 		{
-			CheckNodeKnobMigration ();
-			foreach  (NodeKnob knob in nodeKnobs)
-				knob.DrawKnob ();
+			foreach  (Knob knob in knobs)
+				knob.Draw();
 		}
 
 		/// <summary>
@@ -251,15 +243,16 @@ namespace NodeEditorFramework
 		/// </summary>
 		protected internal virtual void DrawConnections () 
 		{
-			CheckNodeKnobMigration ();
+			//TODO: What is this ?
 			if (Event.current.type != EventType.Repaint)
 				return;
-			foreach (NodeOutput output in Outputs) 
+			
+			foreach (KnobOutput output in Outputs) 
 			{
 				Vector2 startPos = output.GetGUIKnob ().center;
 				Vector2 startDir = output.GetDirection ();
 
-				foreach (NodeInput input in output.connections) 
+				foreach (KnobInput input in output.connections) 
 				{
 					NodeEditorGUI.DrawConnection (startPos,
 					                           startDir,
@@ -267,18 +260,6 @@ namespace NodeEditorFramework
 					                           input.GetDirection (),
 					                           ConnectionTypes.GetTypeData (output.type).col);
 				}
-			}
-		}
-		
-		/// <summary>
-		/// Draws the node transitions starting from this node
-		/// </summary>
-		public void DrawTransitions () 
-		{
-			foreach (Transition transition in transitions)
-			{
-				if (transition.startNode == this)
-					transition.DrawFromStartNode ();
 			}
 		}
 
@@ -297,7 +278,7 @@ namespace NodeEditorFramework
 		/// </summary>
 		protected internal bool allInputsReady ()
 		{
-			foreach (NodeInput input in Inputs) 
+			foreach (KnobInput input in Inputs) 
 			{
 				if (input.connection == null || input.connection.IsValueNull)
 					return false;
@@ -309,20 +290,20 @@ namespace NodeEditorFramework
 		/// </summary>
 		protected internal bool hasUnassignedInputs () 
 		{
-			foreach (NodeInput input in Inputs) 
+			foreach (KnobInput input in Inputs) 
 				if (input.connection == null)
 					return true;
 			return false;
 		}
 		
 		/// <summary>
-		/// Returns whether every direct dexcendant has been calculated
+		/// Returns whether every direct descendant has been calculated
 		/// </summary>
 		protected internal bool descendantsCalculated () 
 		{
-			foreach (NodeInput input in Inputs) 
+			foreach (KnobInput input in Inputs) 
 			{
-				if (input.connection != null && !input.connection.body.calculated)
+				if (input.connection != null && !input.connection.parentNode.calculated)
 					return false;
 			}
 			return true;
@@ -333,7 +314,7 @@ namespace NodeEditorFramework
 		/// </summary>
 		protected internal bool isInput () 
 		{
-			foreach (NodeInput input in Inputs) 
+			foreach (KnobInput input in Inputs) 
 				if (input.connection != null)
 					return false;
 			return true;
@@ -350,21 +331,21 @@ namespace NodeEditorFramework
 		/// </summary>
 		public void CreateOutput (string outputName, string outputType)
 		{
-			NodeOutput.Create (this, outputName, outputType);
+			KnobOutput.Create (this, outputName, outputType);
 		}
 		/// <summary>
 		/// Creates and output on this Node of the given type at the specified NodeSide.
 		/// </summary>
-		public void CreateOutput (string outputName, string outputType, NodeSide nodeSide)
+		public void CreateOutput (string outputName, string outputType, Side nodeSide)
 		{
-			NodeOutput.Create (this, outputName, outputType, nodeSide);
+			KnobOutput.Create (this, outputName, outputType, nodeSide);
 		}
 		/// <summary>
 		/// Creates and output on this Node of the given type at the specified NodeSide and position.
 		/// </summary>
-		public void CreateOutput (string outputName, string outputType, NodeSide nodeSide, float sidePosition)
+		public void CreateOutput (string outputName, string outputType, Side nodeSide, float sidePosition)
 		{
-			NodeOutput.Create (this, outputName, outputType, nodeSide, sidePosition);
+			KnobOutput.Create (this, outputName, outputType, nodeSide, sidePosition);
 		}
 
 		/// <summary>
@@ -380,9 +361,9 @@ namespace NodeEditorFramework
 		/// <summary>
 		/// Returns the output knob that is at the position on this node or null
 		/// </summary>
-		public NodeOutput GetOutputAtPos (Vector2 pos) 
+		public KnobOutput GetOutputAtPos (Vector2 pos) 
 		{
-			foreach (NodeOutput output in Outputs) 
+			foreach (KnobOutput output in Outputs) 
 			{ // Search for an output at the position
 				if (output.GetScreenKnob ().Contains (new Vector3 (pos.x, pos.y)))
 					return output;
@@ -398,21 +379,21 @@ namespace NodeEditorFramework
 		/// </summary>
 		public void CreateInput (string inputName, string inputType)
 		{
-			NodeInput.Create (this, inputName, inputType);
+			KnobInput.Create (this, inputName, inputType);
 		}
 		/// <summary>
 		/// Creates and input on this Node of the given type at the specified NodeSide.
 		/// </summary>
-		public void CreateInput (string inputName, string inputType, NodeSide nodeSide)
+		public void CreateInput (string inputName, string inputType, Side nodeSide)
 		{
-			NodeInput.Create (this, inputName, inputType, nodeSide);
+			KnobInput.Create (this, inputName, inputType, nodeSide);
 		}
 		/// <summary>
 		/// Creates and input on this Node of the given type at the specified NodeSide and position.
 		/// </summary>
-		public void CreateInput (string inputName, string inputType, NodeSide nodeSide, float sidePosition)
+		public void CreateInput (string inputName, string inputType, Side nodeSide, float sidePosition)
 		{
-			NodeInput.Create (this, inputName, inputType, nodeSide, sidePosition);
+			KnobInput.Create (this, inputName, inputType, nodeSide, sidePosition);
 		}
 
 		/// <summary>
@@ -428,9 +409,9 @@ namespace NodeEditorFramework
 		/// <summary>
 		/// Returns the input knob that is at the position on this node or null
 		/// </summary>
-		public NodeInput GetInputAtPos (Vector2 pos) 
+		public KnobInput GetInputAtPos (Vector2 pos) 
 		{
-			foreach (NodeInput input in Inputs) 
+			foreach (KnobInput input in Inputs) 
 			{ // Search for an input at the position
 				if (input.GetScreenKnob ().Contains (new Vector3 (pos.x, pos.y)))
 					return input;
@@ -450,14 +431,14 @@ namespace NodeEditorFramework
 			if (otherNode == null || otherNode == this)
 				return false;
 			if (BeginRecursiveSearchLoop ()) return false;
-			foreach (NodeInput input in Inputs) 
+			foreach (KnobInput input in Inputs) 
 			{
-				NodeOutput connection = input.connection;
+				KnobOutput connection = input.connection;
 				if (connection != null) 
 				{
-					if (connection.body != startRecursiveSearchNode)
+					if (connection.parentNode != startRecursiveSearchNode)
 					{
-						if (connection.body == otherNode || connection.body.isChildOf (otherNode))
+						if (connection.parentNode == otherNode || connection.parentNode.isChildOf (otherNode))
 						{
 							StopRecursiveSearchLoop ();
 							return true;
@@ -475,12 +456,12 @@ namespace NodeEditorFramework
 		internal bool isInLoop ()
 		{
 			if (BeginRecursiveSearchLoop ()) return this == startRecursiveSearchNode;
-			foreach (NodeInput input in Inputs) 
+			foreach (KnobInput input in Inputs) 
 			{
-				NodeOutput connection = input.connection;
+				KnobOutput connection = input.connection;
 				if (connection != null) 
 				{
-					if (connection.body.isInLoop ())
+					if (connection.parentNode.isInLoop ())
 					{
 						StopRecursiveSearchLoop ();
 						return true;
@@ -503,14 +484,14 @@ namespace NodeEditorFramework
 			if (otherNode == null)
 				return false;
 			if (BeginRecursiveSearchLoop ()) return false;
-			foreach (NodeInput input in Inputs)
+			foreach (KnobInput input in Inputs)
 			{
-				NodeOutput connection = input.connection;
+				KnobOutput connection = input.connection;
 				if (connection != null) 
 				{
-					if (connection.body != startRecursiveSearchNode)
+					if (connection.parentNode != startRecursiveSearchNode)
 					{
-						if (connection.body.allowsLoopRecursion (otherNode))
+						if (connection.parentNode.allowsLoopRecursion (otherNode))
 						{
 							StopRecursiveSearchLoop ();
 							return true;
@@ -530,10 +511,10 @@ namespace NodeEditorFramework
 		{
 			if (BeginRecursiveSearchLoop ()) return;
 			calculated = false;
-			foreach (NodeOutput output in Outputs)
+			foreach (KnobOutput output in Outputs)
 			{
-				foreach (NodeInput connection in output.connections)
-					connection.body.ClearCalculation ();
+				foreach (KnobInput connection in output.connections)
+					connection.parentNode.ClearCalculation ();
 			}
 			EndRecursiveSearchLoop ();
 		}
@@ -590,7 +571,7 @@ namespace NodeEditorFramework
 		/// <summary>
 		/// Creates a transition from node to node
 		/// </summary>
-		public static void CreateTransition (Node fromNode, Node toNode) 
+		/*public static void CreateTransition (Node fromNode, Node toNode) 
 		{
 			Transition trans = Transition.Create (fromNode, toNode);
 			if (trans != null)
@@ -599,7 +580,7 @@ namespace NodeEditorFramework
 				toNode.OnAddTransition (trans);
 				NodeEditorCallbacks.IssueOnAddTransition (trans);
 			}
-		}
+		}*/
 
 		#endregion
 	}

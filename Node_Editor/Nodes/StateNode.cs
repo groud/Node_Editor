@@ -1,7 +1,7 @@
-﻿using UnityEngine;
+﻿/*using UnityEngine;
 using UnityEngine.Events;
 using System.Collections.Generic;
-using NodeEditorFramework;
+using NodeEditorFramework.core;
 using NodeEditorFramework.Utilities;
 
 [System.Serializable]
@@ -63,4 +63,4 @@ public class StateNode : Node
 //	{
 //		Debug.Log ("Node " + name + " was assigned the new Transition " + trans);
 //	}
-}
+}*/

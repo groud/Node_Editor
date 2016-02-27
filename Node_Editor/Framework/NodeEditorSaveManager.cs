@@ -3,9 +3,10 @@ using System.Linq;
 using System.Collections.Generic;
 
 using NodeEditorFramework;
+using NodeEditorFramework.core;
 using NodeEditorFramework.Utilities;
 
-namespace NodeEditorFramework 
+namespace NodeEditorFramework
 {
 	/// <summary>
 	/// Manager handling all save and load operations on NodeCanvases and NodeEditorStates of the Node Editor
@@ -59,11 +60,11 @@ namespace NodeEditorFramework
 			foreach (Node node in nodeCanvas.nodes)
 			{ // Every node and each ScriptableObject in it
 				AddSubAsset (node, nodeCanvas);
-				foreach (NodeKnob knob in node.nodeKnobs) 
+				foreach (Knob knob in node.knobs) 
 				{
 					AddSubAsset (knob, node);
 				}
-				foreach (Transition transition in node.transitions) 
+				/*foreach (Transition transition in node.transitions) 
 				{
 					if (transition.startNode == node) 
 					{
@@ -72,7 +73,7 @@ namespace NodeEditorFramework
 					}
 //					else
 //						Debug.Log ("Did NOT save Transition " + node.transitions [transCnt].name + " because its Node " + node.name + " is NOT the start node (" + (node.transitions[transCnt].startNode != null? node.transitions[transCnt].startNode.name : "Null") + ")!");
-				}
+				}*/
 			}
 
 			UnityEditor.AssetDatabase.SaveAssets ();
@@ -236,11 +237,11 @@ namespace NodeEditorFramework
 			List<ScriptableObject> clonedSOs = new List<ScriptableObject> ();
 			foreach (Node node in nodeCanvas.nodes) 
 			{
-				node.CheckNodeKnobMigration ();
+				//node.CheckNodeKnobMigration ();
 				Node clonedNode = (Node)AddClonedSO (allSOs, clonedSOs, node);
-				foreach (NodeKnob knob in clonedNode.nodeKnobs) 
+				foreach (Knob knob in clonedNode.knobs) 
 				{ // Clone NodeKnobs
-//					Debug.Log ("Cloned " + knobCnt + " " + (clonedNode.nodeKnobs[knobCnt] == null? "null" : clonedNode.nodeKnobs[knobCnt].name) + " on node " + node.name);
+//					Debug.Log ("Cloned " + knobCnt + " " + (clonedNode.knobs[knobCnt] == null? "null" : clonedNode.knobs[knobCnt].name) + " on node " + node.name);
 					AddClonedSO (allSOs, clonedSOs, knob);
 					// Clone additional scriptableObjects
 					ScriptableObject[] additionalKnobSOs = knob.GetScriptableObjects ();
@@ -248,7 +249,7 @@ namespace NodeEditorFramework
 						AddClonedSO (allSOs, clonedSOs, so);
 				}
 
-				for (int transCnt = 0; transCnt < clonedNode.transitions.Count; transCnt++)
+				/*for (int transCnt = 0; transCnt < clonedNode.transitions.Count; transCnt++)
 				{ // Clone Transitions
 					Transition trans = clonedNode.transitions[transCnt];
 					if (trans.startNode == node)
@@ -262,7 +263,7 @@ namespace NodeEditorFramework
 						clonedNode.transitions.RemoveAt (transCnt);
 						transCnt--;
 					}
-				}
+				}*/
 				// Clone additional scriptableObjects
 				ScriptableObject[] additionalNodeSOs = clonedNode.GetScriptableObjects ();
 				foreach (ScriptableObject so in additionalNodeSOs)
@@ -272,28 +273,28 @@ namespace NodeEditorFramework
 			// Replace every reference to any of the initial SOs of the first list with the respective clones of the second list
 
 			nodeCanvas.currentNode = ReplaceSO (allSOs, clonedSOs, nodeCanvas.currentNode);
-			nodeCanvas.currentTransition = ReplaceSO (allSOs, clonedSOs, nodeCanvas.currentTransition);
-			for(int nodeIndex=0;nodeIndex < nodeCanvas.Count;nodeIndex++) 
+			//nodeCanvas.currentTransition = ReplaceSO (allSOs, clonedSOs, nodeCanvas.currentTransition);
+			for(int nodeIndex=0;nodeIndex < nodeCanvas.nodes.Count;nodeIndex++) 
 			{ // Clone Nodes, structural content and additional scriptableObjects
-				Node clonedNode = nodeCanvas[nodeIndex]= ReplaceSO (allSOs, clonedSOs, nodeCanvas[nodeIndex]);
+				Node clonedNode = nodeCanvas.nodes[nodeIndex]= ReplaceSO (allSOs, clonedSOs, nodeCanvas.nodes[nodeIndex]);
 				// We're going to restore these from NodeKnobs if desired (!compressed)
-				clonedNode.Inputs = new List<NodeInput> ();
-				clonedNode.Outputs = new List<NodeOutput> ();
-				for(int knobIndex=0;knobIndex < clonedNode.nodeKnobs.Count;knobIndex++) 
+				clonedNode.Inputs = new List<KnobInput> ();
+				clonedNode.Outputs = new List<KnobOutput> ();
+				for(int knobIndex=0;knobIndex < clonedNode.knobs.Count;knobIndex++) 
 				{ // Clone generic NodeKnobs
-					NodeKnob clonedknob = clonedNode.nodeKnobs[knobIndex] = ReplaceSO (allSOs, clonedSOs, clonedNode.nodeKnobs[knobIndex]);
-					clonedknob.body = clonedNode;
+					Knob clonedknob = clonedNode.knobs[knobIndex] = ReplaceSO (allSOs, clonedSOs, clonedNode.knobs[knobIndex]);
+					clonedknob.parentNode = clonedNode;
 					// Replace additional scriptableObjects in the NodeKnob
 					clonedknob.CopyScriptableObjects ((ScriptableObject so) => ReplaceSO (allSOs, clonedSOs, so));
 					if (!compressed) 
-					{ // Add NodeInputs and NodeOutputs to the apropriate lists in Node if desired (!compressed)
-						if (clonedknob is NodeInput)
-							clonedNode.Inputs.Add (clonedknob as NodeInput);
-						else if (clonedknob is NodeOutput)
-							clonedNode.Outputs.Add (clonedknob as NodeOutput);
+					{ // Add KnobInputs and NodeOutputs to the apropriate lists in Node if desired (!compressed)
+						if (clonedknob is KnobInput)
+							clonedNode.Inputs.Add (clonedknob as KnobInput);
+						else if (clonedknob is KnobOutput)
+							clonedNode.Outputs.Add (clonedknob as KnobOutput);
 					}
 				}
-				for(int transitionIndex=0;transitionIndex < clonedNode.transitions.Count ;transitionIndex++) 
+				/*for(int transitionIndex=0;transitionIndex < clonedNode.transitions.Count ;transitionIndex++) 
 				{ // Clone transitions
 					if (clonedNode.transitions[transitionIndex].startNode != node)
 						continue;
@@ -310,16 +311,16 @@ namespace NodeEditorFramework
 
 					if (!compressed)
 						clonedTransition.endNode.transitions.Add (clonedTransition);
-				}
+				}*/
 				// Replace additional scriptableObjects in the Node
-				node.CopyScriptableObjects ((ScriptableObject so) => ReplaceSO (allSOs, clonedSOs, so));
+				clonedNode.CopyScriptableObjects ((ScriptableObject so) => ReplaceSO (allSOs, clonedSOs, so));
 			}
 
 			// Also create working copies for specified editorStates, if any
 			// Needs to be in the same function as the EditorState references nodes from the NodeCanvas
 			if (editorStates != null)
 			{
-				for (int nodeEditorStateIndex = 0; nodeEditorStateIndex < editorStates.Count; nodeEditorStateIndex++)
+				for (int nodeEditorStateIndex = 0; nodeEditorStateIndex < editorStates.Length; nodeEditorStateIndex++)
 				{
 					if (editorStates[nodeEditorStateIndex] == null)
 						continue;

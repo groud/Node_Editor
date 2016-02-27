@@ -1,20 +1,20 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
 
-namespace NodeEditorFramework 
+namespace NodeEditorFramework.core
 {
 	/// <summary>
 	/// Node output accepts multiple connections to NodeInputs by default
 	/// </summary>
-	public class NodeOutput : NodeKnob
+	public class KnobOutput : Knob
 	{
 		// NodeKnob Members
-		protected override NodeSide defaultSide { get { return NodeSide.Right; } }
+		protected override Side defaultSide { get { return Side.Right; } }
 		private static GUIStyle _defaultStyle;
 		protected override GUIStyle defaultLabelStyle { get { if (_defaultStyle == null) { _defaultStyle = new GUIStyle (GUI.skin.label); _defaultStyle.alignment = TextAnchor.MiddleRight; } return _defaultStyle; } }
 
 		// NodeInput Members
-		public List<NodeInput> connections = new List<NodeInput> ();
+		public List<KnobInput> connections = new List<KnobInput> ();
 		public string type;
 		[System.NonSerialized]
 		internal TypeData typeData;
@@ -26,15 +26,15 @@ namespace NodeEditorFramework
 		/// <summary>
 		/// Creates a new NodeOutput in NodeBody of specified type
 		/// </summary>
-		public static NodeOutput Create (Node nodeBody, string outputName, string outputType) 
+		public static KnobOutput Create (Node nodeBody, string outputName, string outputType) 
 		{
-			return Create (nodeBody, outputName, outputType, NodeSide.Right, 20);
+			return Create (nodeBody, outputName, outputType, Side.Right, 20);
 		}
 
 		/// <summary>
 		/// Creates a new NodeOutput in NodeBody of specified type
 		/// </summary>
-		public static NodeOutput Create (Node nodeBody, string outputName, string outputType, NodeSide nodeSide) 
+		public static KnobOutput Create (Node nodeBody, string outputName, string outputType, Side nodeSide) 
 		{
 			return Create (nodeBody, outputName, outputType, nodeSide, 20);
 		}
@@ -42,9 +42,9 @@ namespace NodeEditorFramework
 		/// <summary>
 		/// Creates a new NodeOutput in NodeBody of specified type at the specified Node Side
 		/// </summary>
-		public static NodeOutput Create (Node nodeBody, string outputName, string outputType, NodeSide nodeSide, float sidePosition) 
+		public static KnobOutput Create (Node nodeBody, string outputName, string outputType, Side nodeSide, float sidePosition) 
 		{
-			NodeOutput output = CreateInstance <NodeOutput> ();
+			KnobOutput output = CreateInstance <KnobOutput> ();
 			output.type = outputType;
 			output.InitBase (nodeBody, nodeSide, sidePosition, outputName);
 			nodeBody.Outputs.Add (output);
@@ -58,7 +58,7 @@ namespace NodeEditorFramework
 		protected internal override void CopyScriptableObjects (System.Func<ScriptableObject, ScriptableObject> replaceSerializableObject) 
 		{
 			for (int conCnt = 0; conCnt < connections.Count; conCnt++) 
-				connections[conCnt] = replaceSerializableObject.Invoke (connections[conCnt]) as NodeInput;
+				connections[conCnt] = replaceSerializableObject.Invoke (connections[conCnt]) as KnobInput;
 		}
 
 		#endregion

@@ -73,7 +73,7 @@ public class RuntimeNodeEditor : MonoBehaviour
 		screenSize = GUILayout.Toggle (screenSize, "Adapt to Screen");
 		GUILayout.Label ("FPS: " + FPSCounter.currentFPS);
 
-		GUILayout.Label (new GUIContent ("Node Editor (" + canvas.name + ")"), NodeEditorGUI.nodeLabelBold);
+		GUILayout.Label (new GUIContent ("Node Editor (" + canvas.name + ")"));
 
 		#if UNITY_EDITOR
 		if (GUILayout.Button (new GUIContent ("Save Canvas", "Saves the Canvas to a Canvas Save File in the Assets Folder")))

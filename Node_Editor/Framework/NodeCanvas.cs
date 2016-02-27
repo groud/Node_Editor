@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
-using NodeEditorFramework;
+using NodeEditorFramework.core;
 
 namespace NodeEditorFramework 
 {
@@ -10,6 +10,6 @@ namespace NodeEditorFramework
 
 		// current states in the state system
 		public Node currentNode;
-		public Transition currentTransition;
+		//public Transition currentTransition;
 	}
 }

@@ -4,7 +4,7 @@ using UnityEngine;
 using System;
 using System.Collections.Generic;
 
-using NodeEditorFramework;
+using NodeEditorFramework.core;
 using NodeEditorFramework.Utilities;
 
 using Object = UnityEngine.Object;
@@ -15,42 +15,30 @@ namespace NodeEditorFramework
 	/// Central class of NodeEditor providing the GUI to draw the Node Editor Canvas, bundling all other parts of the Framework
 	/// Only Calculation is yet to be split from this
 	/// </summary>
-	public static class NodeEditor 
+	public class NodeEditor 
 	{
 		public static string editorPath = "Assets/Plugins/Node_Editor/";
 
 		// The NodeCanvas which represents the currently drawn Node Canvas; globally accessed
-		public static NodeCanvas curNodeCanvas;
-		public static NodeEditorState curEditorState;
+		public NodeCanvas canvas;
+		public NodeEditorState curEditorState;
 
 		// Temp GUI state variables
 		private static bool unfocusControls;
 		private static Vector2 mousePos;
 
 		// GUI callback control
-		internal static Action NEUpdate;
-		public static void Update () { if (NEUpdate != null) NEUpdate (); }
-		public static Action ClientRepaints;
-		public static void RepaintClients () { if (ClientRepaints != null) ClientRepaints (); }
+		//internal static Action NEUpdate;
+		//public static void Update () { if (NEUpdate != null) NEUpdate (); }
+		//public static Action ClientRepaints;
+		//public static void RepaintClients () { if (ClientRepaints != null) ClientRepaints (); }
 
 		#region Setup
 
-		public static bool initiated;
-		public static bool InitiationError;
-
 		/// <summary>
-		/// Initiates the Node Editor if it wasn't yet
+		/// Re-Inits the NodeCanvas regardless of wether it was initiated before
 		/// </summary>
-		public static void checkInit () 
-		{
-			if (!initiated && !InitiationError)
-				ReInit (true);
-		}
-
-		/// <summary>
-		/// Re-Inits the NodeCanvas regardless of whetehr it was initiated before
-		/// </summary>
-		public static void ReInit (bool GUIFunction) 
+		public static void ReInit (bool GUIFunction)
 		{
 			CheckEditorPath ();
 
@@ -58,15 +46,11 @@ namespace NodeEditorFramework
 			ResourceManager.SetDefaultResourcePath (editorPath + "Resources/");
 			
 			// Init NE GUI. I may throw an error if a texture was not found.	
-			if (!NodeEditorGUI.Init (GUIFunction)) 
-			{	
-				InitiationError = true;
-				return;
-			}
+			NodeEditorGUI.Init();
 
 			// Run fetching algorithms searching the script assemblies for Custom Nodes / Connection Types
 			ConnectionTypes.FetchTypes ();
-			NodeTypes.FetchNodes ();
+			NodeFactory.FetchNodes ();
 
 			// Setup Callback system
 			NodeEditorCallbacks.SetupReceivers ();
@@ -142,10 +126,10 @@ namespace NodeEditorFramework
 				return;
 
 			// Store and restore later on in case of this being a nested Canvas
-			NodeCanvas prevNodeCanvas = curNodeCanvas;
+			NodeCanvas prevNodeCanvas = canvas;
 			NodeEditorState prevEditorState = curEditorState;
 			
-			curNodeCanvas = nodeCanvas;
+			canvas = nodeCanvas;
 			curEditorState = editorState;
 
 			if (Event.current.type == EventType.Repaint) 
@@ -194,7 +178,7 @@ namespace NodeEditorFramework
 			}
 			if (curEditorState.connectOutput != null)
 			{ // Draw the currently drawn connection
-				NodeOutput output = curEditorState.connectOutput;
+				KnobOutput output = curEditorState.connectOutput;
 				Vector2 startPos = output.GetGUIKnob ().center;
 				Vector2 endPos = ScreenToGUIPos (mousePos) + curEditorState.zoomPos * curEditorState.zoom;
 				Vector2 endDir = output.GetDirection ();
@@ -212,22 +196,22 @@ namespace NodeEditorFramework
 			// Push the active node at the bottom of the draw order.
 			if (Event.current.type == EventType.Layout && curEditorState.selectedNode != null)
 			{
-				curNodeCanvas.nodes.Remove (curEditorState.selectedNode);
-				curNodeCanvas.nodes.Add (curEditorState.selectedNode);
+				canvas.nodes.Remove (curEditorState.selectedNode);
+				canvas.nodes.Add (curEditorState.selectedNode);
 			}
 
 			// Draw the transitions and connections. Has to be drawn before nodes as transitions originate from node centers
 
-			foreach (Node node in curNodeCanvas.nodes)  
+			foreach (Node node in canvas.nodes)  
 			{
-				node.DrawTransitions ();
+				//node.DrawTransitions ();
 				node.DrawConnections ();
 			}
 
 			// Draw the nodes
-			foreach (Node node in curNodeCanvas.nodes)  
+			foreach (Node node in canvas.nodes)  
 			{
-				node.DrawNode ();
+				node.Draw();
 				if (Event.current.type == EventType.Repaint)
 					node.DrawKnobs ();
 			}
@@ -240,7 +224,7 @@ namespace NodeEditorFramework
 			// Check events with less priority than node GUI controls
 			LateEvents ();
 			
-			curNodeCanvas = prevNodeCanvas;
+			canvas = prevNodeCanvas;
 			curEditorState = prevEditorState;
 		}
 		
@@ -253,8 +237,9 @@ namespace NodeEditorFramework
 		/// </summary>
 		public static Node NodeAtPosition (Vector2 pos)
 		{
-			return NodeAtPosition (curEditorState, curNodeCanvas, pos);
+			return NodeAtPosition (curEditorState, canvas, pos);
 		}
+
 		/// <summary>
 		/// Returns the node at the position in specified canvas space.
 		/// </summary>
@@ -267,7 +252,7 @@ namespace NodeEditorFramework
 				Node node = nodeCanvas.nodes [nodeCnt];
 				if (CanvasGUIToScreenRect (node.rect).Contains (pos)) // Node Body
 					return node;
-				foreach (NodeKnob knob in node.nodeKnobs)
+				foreach (Knob knob in node.knobs)
 				{ // Any edge control
 					if (knob.GetScreenKnob ().Contains (pos))
 						return node;
@@ -283,6 +268,7 @@ namespace NodeEditorFramework
 		{
 			return CanvasGUIToScreenRect (curEditorState, rect);
 		}
+
 		/// <summary>
 		/// Transforms the Rect in GUI space into Screen space
 		/// </summary>
@@ -303,6 +289,7 @@ namespace NodeEditorFramework
 		{
 			return ScreenToGUIPos (curEditorState, pos);
 		}
+
 		/// <summary>
 		/// Transforms screen position pos (like mouse pos) to a point in specified GUI space
 		/// </summary>
@@ -387,13 +374,13 @@ namespace NodeEditorFramework
 					if (rightClick)
 					{ // Node Context Click
 						GenericMenu menu = new GenericMenu ();
-						menu.AddItem (new GUIContent ("Delete Node"), false, ContextCallback, new NodeEditorMenuCallback ("deleteNode", curNodeCanvas, curEditorState));
-						menu.AddItem (new GUIContent ("Duplicate Node"), false, ContextCallback, new NodeEditorMenuCallback ("duplicateNode", curNodeCanvas, curEditorState));
-						if (curEditorState.focusedNode.AcceptsTranstitions)
+						menu.AddItem (new GUIContent ("Delete Node"), false, ContextCallback, new NodeEditorMenuCallback ("deleteNode", canvas, curEditorState));
+						menu.AddItem (new GUIContent ("Duplicate Node"), false, ContextCallback, new NodeEditorMenuCallback ("duplicateNode", canvas, curEditorState));
+						/*if (curEditorState.focusedNode.AcceptsTranstitions)
 						{
 							menu.AddSeparator ("Seperator");
 							menu.AddItem (new GUIContent ("Make Transition"), false, ContextCallback, new NodeEditorMenuCallback ("startTransition", curNodeCanvas, curEditorState));
-						}
+						}*/
 						menu.ShowAsContext ();
 						e.Use ();
 					}
@@ -401,7 +388,7 @@ namespace NodeEditorFramework
 					{ // Detect click on a connection knob
 						if (!CanvasGUIToScreenRect (curEditorState.focusedNode.rect).Contains (mousePos))
 						{ // Clicked NodeEdge, check Node Inputs and Outputs
-							NodeOutput nodeOutput = curEditorState.focusedNode.GetOutputAtPos (e.mousePosition);
+							KnobOutput nodeOutput = curEditorState.focusedNode.GetOutputAtPos (e.mousePosition);
 							if (nodeOutput != null)
 							{ // Output clicked -> New Connection drawn from this
 								curEditorState.connectOutput = nodeOutput;
@@ -409,10 +396,10 @@ namespace NodeEditorFramework
 								return;
 							}
 
-							NodeInput nodeInput = curEditorState.focusedNode.GetInputAtPos (e.mousePosition);
+							KnobInput nodeInput = curEditorState.focusedNode.GetInputAtPos (e.mousePosition);
 							if (nodeInput != null && nodeInput.connection != null)
 							{ // Input clicked -> Loose and edit Connection
-								// TODO: Draw input from NodeInput
+								// TODO: Draw input from KnobInput
 								curEditorState.connectOutput = nodeInput.connection;
 								nodeInput.RemoveConnection ();
 								e.Use();
@@ -428,11 +415,11 @@ namespace NodeEditorFramework
 					if (rightClick) 
 					{ // Editor Context Click
 						GenericMenu menu = new GenericMenu ();
-						if (curEditorState.connectOutput != null) 
+						/*if (curEditorState.connectOutput != null) 
 						{ // A connection is drawn, so provide a context menu with apropriate nodes to auto-connect
-							foreach (Node node in NodeTypes.nodes.Keys)
+							foreach (System.Type node in NodeFactory.FetchNodes())
 							{ // Iterate through all nodes and check for compability
-								foreach (NodeInput input in node.Inputs)
+								foreach (KnobInput input in node.)
 								{
 									if (input.type == curEditorState.connectOutput.type)
 									{
@@ -451,10 +438,10 @@ namespace NodeEditorFramework
 							}
 						}
 						else 
-						{ // Ordinary context click, add all nodes to add
-							foreach (Node node in NodeTypes.nodes.Keys)
-								menu.AddItem (new GUIContent ("Add " + NodeTypes.nodes [node].adress), false, ContextCallback, new NodeEditorMenuCallback (node.GetID, curNodeCanvas, curEditorState));
-						}
+						{*/ // Ordinary context click, add all nodes to add
+						foreach (System.Type node in NodeFactory.FetchNodes())
+							menu.AddItem (new GUIContent ("Add " + node.Name), false, ContextCallback, new NodeEditorMenuCallback (node.Name, canvas, curEditorState));
+						//}
 						menu.ShowAsContext ();
 						e.Use ();
 					}
@@ -466,15 +453,15 @@ namespace NodeEditorFramework
 
 				if (curEditorState.focusedNode != null) 
 				{ // Apply Drawn connections/transition on node
-					if (curEditorState.makeTransition != null)
+					/*if (curEditorState.makeTransition != null)
 					{ // Apply a connection if theres a clicked input
 						Node.CreateTransition (curEditorState.makeTransition, curEditorState.focusedNode);
-					}
+					}*/
 					if (curEditorState.connectOutput != null) 
 					{ // Apply a connection if theres a clicked input
 						if (!curEditorState.focusedNode.Outputs.Contains (curEditorState.connectOutput)) 
 						{ // An input was clicked, it'll will now be connected
-							NodeInput clickedInput = curEditorState.focusedNode.GetInputAtPos (e.mousePosition);
+							KnobInput clickedInput = curEditorState.focusedNode.GetInputAtPos (e.mousePosition);
 							if (clickedInput.CanApplyConnection (curEditorState.connectOutput)) 
 							{ // It can connect (type is equals, it does not cause recursion, ...)
 								clickedInput.ApplyConnection (curEditorState.connectOutput);
@@ -530,7 +517,7 @@ namespace NodeEditorFramework
 				if (curEditorState.panWindow) 
 				{ // Scroll everything with the current mouse delta
 					curEditorState.panOffset += e.delta * curEditorState.zoom;
-					foreach (Node node in curNodeCanvas.nodes) 
+					foreach (Node node in canvas.nodes) 
 						node.rect.position += e.delta * curEditorState.zoom;
 					e.delta = Vector2.zero;
 					RepaintClients ();
@@ -590,7 +577,7 @@ namespace NodeEditorFramework
 			NodeEditorMenuCallback callback = obj as NodeEditorMenuCallback;
 			if (callback == null)
 				throw new UnityException ("Callback Object passed by context is not of type NodeEditorMenuCallback!");
-			curNodeCanvas = callback.canvas;
+			canvas = callback.canvas;
 			curEditorState = callback.editor;
 
 			switch (callback.message)
@@ -603,8 +590,8 @@ namespace NodeEditorFramework
 			case "duplicateNode": // Duplicate request
 				if (curEditorState.focusedNode != null) 
 				{
-					ContextCallback (new NodeEditorMenuCallback (curEditorState.focusedNode.GetID, curNodeCanvas, curEditorState));
-					Node duplicatedNode = curNodeCanvas.nodes [curNodeCanvas.nodes.Count-1];
+					ContextCallback (new NodeEditorMenuCallback (curEditorState.focusedNode.name, canvas, curEditorState));
+					Node duplicatedNode = canvas.nodes [canvas.nodes.Count-1];
 
 					curEditorState.focusedNode = duplicatedNode;
 					curEditorState.dragNode = true;
@@ -626,12 +613,12 @@ namespace NodeEditorFramework
 				break;
 
 			default: // Node creation request
-				Node node = Node.Create (callback.message, ScreenToGUIPos (callback.contextClickPos));
+				Node node = null;//Node.Create (callback.message, ScreenToGUIPos (callback.contextClickPos));
 
 				// Handle auto-connection
 				if (curEditorState.connectOutput != null)
 				{ // If nodeOutput is defined, link it to the first input of the same type
-					foreach (NodeInput input in node.Inputs)
+					foreach (KnobInput input in node.Inputs)
 					{
 						if (input.CanApplyConnection (curEditorState.connectOutput))
 						{ // If it can connect (type is equals, it does not cause recursion, ...)
@@ -640,10 +627,10 @@ namespace NodeEditorFramework
 						}
 					}
 				}
-				else if (node.AcceptsTranstitions && curEditorState.makeTransition != null) 
+				/*else if (node.AcceptsTranstitions && curEditorState.makeTransition != null) 
 				{
 					Node.CreateTransition (curEditorState.makeTransition, node);
-				}
+				}*/
 
 				curEditorState.makeTransition = null;
 				curEditorState.connectOutput = null;
@@ -688,19 +675,19 @@ namespace NodeEditorFramework
 				throw new UnityException ("Node to begin transitioning from has to be associated with the passed NodeEditorState!");
 
 			nodeCanvas.currentNode = beginNode;
-			nodeCanvas.currentTransition = null;
+			//nodeCanvas.currentTransition = null;
 			if (!transitioningNodeCanvases.Contains (nodeCanvas))
 				transitioningNodeCanvases.Add (nodeCanvas);
 
 			RepaintClients ();
 
 //			Debug.Log ("Beginning transitioning " + nodeCanvas.name + " from Node " + beginNode.name);
-			nodeCanvas.currentNode.OnEnter (null);
+			//nodeCanvas.currentNode.OnEnter (null);
 
-		#if UNITY_EDITOR
+		/*#if UNITY_EDITOR
 			NEUpdate -= UpdateTransitions;
 			NEUpdate += UpdateTransitions;
-		#endif
+		#endif*/
 		}
 
 		/// <summary>
@@ -712,23 +699,23 @@ namespace NodeEditorFramework
 				return;
 			if (transitioningNodeCanvases.Contains (nodeCanvas))
 				transitioningNodeCanvases.Remove (nodeCanvas);
-		#if UNITY_EDITOR
+		/*#if UNITY_EDITOR
 			if (transitioningNodeCanvases.Count == 0)
 				NEUpdate -= UpdateTransitions;
-		#endif	
+		#endif	*/
 //			Debug.Log ("Stopped transitioning " + nodeCanvas.name + (nodeCanvas.currentNode != null? (" at Node " + nodeCanvas.currentNode.name) : ""));
-			if (nodeCanvas.currentTransition != null)
+			/*if (nodeCanvas.currentTransition != null)
 			{
 				nodeCanvas.currentTransition.stopTransition ();
 				nodeCanvas.currentTransition = null;
-			}
+			}*/
 			RepaintClients ();
 		}
 
 		/// <summary>
 		/// Updates the transitions.
 		/// </summary>
-		private static void UpdateTransitions () 
+		/*private static void UpdateTransitions () 
 		{
 			foreach (NodeCanvas nodeCanvas in transitioningNodeCanvases)
 			{
@@ -769,7 +756,7 @@ namespace NodeEditorFramework
 //				else
 //					Debug.Log ("No Transitions which conditions were met found on Node " + nodeCanvas.currentNode.name + "!");
 			}
-		}
+		}*/
 
 		/// <summary>
 		/// Returns whether the passed canvas is in the transitioning process
@@ -783,7 +770,7 @@ namespace NodeEditorFramework
 		/// <summary>
 		/// Returns the first transition of the node that has it's conditions met
 		/// </summary>
-		private static Transition GetNextTransition (Node node) 
+		/*private static Transition GetNextTransition (Node node) 
 		{
 			foreach (Transition trans in node.transitions) 
 			{
@@ -791,7 +778,7 @@ namespace NodeEditorFramework
 					return trans;
 			}
 			return null;
-		}
+		}*/
 
 		// CALCULATION SYSTEM:
 		
@@ -867,10 +854,10 @@ namespace NodeEditorFramework
 				workList.Remove (node);
 				if (node.ContinueCalculation && calculationCount < 1000) 
 				{
-					foreach (NodeOutput output in node.Outputs)
+					foreach (KnobOutput output in node.Outputs)
 					{
-						foreach (NodeInput connection in output.connections)
-							ContinueCalculation(connection.body);
+						foreach (KnobInput connection in output.connections)
+							ContinueCalculation(connection.parentNode);
 					}
 				}
 				else if (calculationCount >= 1000)

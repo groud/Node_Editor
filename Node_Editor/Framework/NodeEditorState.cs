@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using System;
 using System.Collections.Generic;
-using NodeEditorFramework;
+using NodeEditorFramework.core;
 
 namespace NodeEditorFramework 
 {
@@ -24,7 +24,7 @@ namespace NodeEditorFramework
 		[NonSerialized]
 		public Node makeTransition; // make transition from node
 		[NonSerialized]
-		public NodeOutput connectOutput; // connection this output
+		public KnobOutput connectOutput; // connection this output
 
 		// Navigation State
 		public Vector2 panOffset = new Vector2 (); // pan offset

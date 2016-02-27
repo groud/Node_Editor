@@ -1,13 +1,14 @@
 ﻿using UnityEngine;
 using System.Collections;
 using NodeEditorFramework;
+using NodeEditorFramework.core;
 
 [System.Serializable]
 [Node (false, "Float/Display")]
 public class DisplayNode : Node 
 {
-	public const string ID = "displayNode";
-	public override string GetID { get { return ID; } }
+	//public const string ID = "displayNode";
+	//public override string GetID { get { return ID; } }
 
 	[HideInInspector]
 	public bool assigned = false;
@@ -20,7 +21,7 @@ public class DisplayNode : Node
 		node.name = "Display Node";
 		node.rect = new Rect (pos.x, pos.y, 150, 50);
 		
-		NodeInput.Create (node, "Value", "Float");
+		KnobInput.Create (node, "Value", "Float");
 
 		return node;
 	}

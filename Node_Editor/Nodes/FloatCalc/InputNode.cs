@@ -1,14 +1,15 @@
 ﻿using UnityEngine;
 using System.Collections;
 using NodeEditorFramework;
+using NodeEditorFramework.core;
 using NodeEditorFramework.Utilities;
 
 [System.Serializable]
 [Node (false, "Float/Input")]
 public class InputNode : Node 
 {
-	public const string ID = "inputNode";
-	public override string GetID { get { return ID; } }
+	//public const string ID = "inputNode";
+	//public override string GetID { get { return ID; } }
 
 	public float value = 1f;
 
@@ -19,7 +20,7 @@ public class InputNode : Node
 		node.name = "Input Node";
 		node.rect = new Rect (pos.x, pos.y, 200, 50);;
 		
-		NodeOutput.Create (node, "Value", "Float");
+		KnobOutput.Create (node, "Value", "Float");
 
 		return node;
 	}

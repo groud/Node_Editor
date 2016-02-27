@@ -1,14 +1,15 @@
 ﻿using UnityEngine;
 using System;
 using System.Collections.Generic;
+using NodeEditorFramework.core;
 using NodeEditorFramework;
 
 [System.Serializable]
 [Node (true, "Group")]
 public class GroupNode : Node 
 {
-	public const string ID = "groupNode";
-	public override string GetID { get { return ID; } }
+	//public const string ID = "groupNode";
+	//public override string GetID { get { return ID; } }
 
 	public bool edit = false;
 	public NodeCanvas nodeGroupCanvas;
@@ -60,7 +61,7 @@ public class GroupNode : Node
 			editorState.drawing = edit;
 			editorState.name = "GroupNode_EditorState";
 
-			Node node = NodeTypes.getDefaultNode ("exampleNode");
+			/*Node node = NodeFactory.getDefaultNode ("exampleNode");
 			if (node != null)
 			{
 				NodeCanvas prevNodeCanvas = NodeEditor.curNodeCanvas;
@@ -68,16 +69,16 @@ public class GroupNode : Node
 				node = node.Create (Vector2.zero);
 				node.InitBase ();
 				NodeEditor.curNodeCanvas = prevNodeCanvas;
-			}
+			}*/
 		}
 		GUILayout.EndHorizontal ();
 
 		if (nodeGroupCanvas != null)
 		{
-			foreach (NodeInput input in Inputs)
+			foreach (KnobInput input in Inputs)
 				input.DisplayLayout ();
 
-			foreach (NodeOutput output in Outputs)
+			foreach (KnobOutput output in Outputs)
 				output.DisplayLayout ();
 
 			if (!edit)
@@ -105,7 +106,7 @@ public class GroupNode : Node
 				{
 					editorState.canvasRect = canvasRect;
 					Rect canvasControlRect = editorState.canvasRect;
-					canvasControlRect.position += rect.position + contentOffset;
+					canvasControlRect.position += rect.position;
 					NodeEditor.curEditorState.ignoreInput.Add (NodeEditorFramework.NodeEditor.CanvasGUIToScreenRect (canvasControlRect));	
 				}
 
@@ -149,8 +150,8 @@ public class GroupNode : Node
 
 	public void AdoptInputsOutputs () 
 	{
-		Inputs = new List<NodeInput> ();
-		Outputs = new List<NodeOutput> ();
+		Inputs = new List<KnobInput> ();
+		Outputs = new List<KnobOutput> ();
 
 		if (nodeGroupCanvas == null)
 			return;
@@ -162,14 +163,14 @@ public class GroupNode : Node
 			if (node.Inputs.Count == 0) 
 			{ // Input Node
 				Debug.Log ("Adopting input node!");
-				foreach (NodeOutput output in node.Outputs)
-					Inputs.Add (NodeInput.Create (node, output.name, output.type));
+				foreach (KnobOutput output in node.Outputs)
+					Inputs.Add (KnobInput.Create (node, output.name, output.type));
 			}
 			else if (node.Outputs.Count == 0)
 			{ // Output node
 				Debug.Log ("Adopting output node!");
-				foreach (NodeInput input in node.Inputs)
-					Outputs.Add (NodeOutput.Create (node, input.name, input.type));
+				foreach (KnobInput input in node.Inputs)
+					Outputs.Add (KnobOutput.Create (node, input.name, input.type));
 			}
 		}
 	}

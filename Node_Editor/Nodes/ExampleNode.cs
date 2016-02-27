@@ -1,12 +1,13 @@
 ﻿using UnityEngine;
 using NodeEditorFramework;
+using NodeEditorFramework.core;
 using NodeEditorFramework.Utilities;
 
 [Node (true, "Example Node")]
 public class ExampleNode : Node 
 {
-	public const string ID = "exampleNode";
-	public override string GetID { get { return ID; } }
+	//public const string ID = "exampleNode";
+	//public override string GetID { get { return ID; } }
 	
 	public override Node Create (Vector2 pos) 
 	{
